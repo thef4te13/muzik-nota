@@ -16,3 +16,9 @@ describe('chunkSamples', () => {
     expect(chunks.map(c => c.length)).toEqual([30, 30, 15]);
   });
 });
+
+import { largeFileWarning } from '../src/audio/loader.js';
+describe('largeFileWarning', () => {
+  it('küçük dosyada uyarı yoktur', () => expect(largeFileWarning(5 * 1024 * 1024)).toBeNull());
+  it('çok büyük dosyada uyarı verir', () => expect(largeFileWarning(200 * 1024 * 1024)).toMatch(/büyük/));
+});

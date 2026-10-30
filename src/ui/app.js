@@ -1,13 +1,14 @@
 import { applyTheme, validateTheme } from '../theme/theme.js';
-import { decodeToMono22050 } from '../audio/loader.js';
+import { decodeToMono22050, largeFileWarning } from '../audio/loader.js';
 import { transcribe } from '../transcribe/basicPitch.js';
 import { estimateTempo } from '../transcribe/tempo.js';
 import { toTabLines } from '../instruments/guitar.js';
 import { assignHandAndFinger } from '../instruments/piano.js';
-import { noteName, intervalSemitones } from '../instruments/vocal.js';
+import { noteName, intervalSemitones, tessituraWarning } from '../instruments/vocal.js';
 import { exportMidi } from '../render/midi.js';
 import { renderNotation } from '../render/notation.js';
 import { tabText } from '../render/tab.js';
+import { createLatestRun } from './runGuard.js';
 
 const THEME_KEY = 'muzik-nota-theme';
 // Notes starting closer together than this are treated as one chord.
@@ -15,6 +16,7 @@ const CHORD_WINDOW_SECONDS = 0.03;
 const SAMPLE_RATE = 22050;
 
 const ui = {};
+const latest = createLatestRun();
 let notes = null;
 let bpm = null;
 let themes = [];
@@ -104,15 +106,21 @@ async function analyze(file) {
   ui.midi.disabled = true;
   if (!file) return;
 
+  const run = latest.begin();
+  const current = () => latest.isCurrent(run);
+  const warning = largeFileWarning(file.size);
+
   try {
-    ui.status.textContent = 'Ses çözülüyor…';
+    ui.status.textContent = warning ?? 'Ses çözülüyor…';
     setProgress(true);
     const samples = await decodeToMono22050(await file.arrayBuffer());
+    if (!current()) return;
 
     ui.status.textContent = 'Notalar çıkarılıyor…';
     const found = await transcribe(samples, SAMPLE_RATE, fraction => {
-      ui.progress.value = fraction;
+      if (current()) ui.progress.value = fraction;
     });
+    if (!current()) return;
 
     if (found.length === 0) {
       ui.status.textContent = 'Nota bulunamadı. Kayıtta belirgin bir ses olmayabilir.';
@@ -123,13 +131,15 @@ async function analyze(file) {
     notes = found;
     bpm = estimateTempo([...new Set(notes.map(n => n.start))].sort((a, b) => a - b));
     ui.midi.disabled = false;
-    ui.status.textContent = `${notes.length} nota bulundu${bpm ? `, tempo yaklaşık ${Math.round(bpm)} BPM` : ''}.`;
+    const summary = `${notes.length} nota bulundu${bpm ? `, tempo yaklaşık ${Math.round(bpm)} BPM` : ''}.`;
+    ui.status.textContent = warning ? `${warning} ${summary}` : summary;
     show();
   } catch (err) {
+    if (!current()) return;
     ui.status.textContent = '';
     ui.error.textContent = describeError(err);
   } finally {
-    setProgress(false);
+    if (current()) setProgress(false);
   }
 }
 
@@ -142,6 +152,9 @@ function setProgress(busy) {
 function describeError(err) {
   console.error(err);
   const text = String(err?.message ?? '');
+  if (err instanceof RangeError) {
+    return 'Dosya işlenemeyecek kadar büyük. Daha kısa bir kayıt deneyin.';
+  }
   if (err instanceof DOMException || /decode/i.test(text)) {
     return 'Bu dosya çözülemedi. MP3, WAV, OGG veya M4A deneyin.';
   }
@@ -159,7 +172,9 @@ function show() {
   } else if (kind === 'piano') {
     ui.guidance.innerHTML = pianoList(notes);
   } else {
-    ui.guidance.innerHTML = vocalList(notes);
+    const warning = tessituraWarning(notes);
+    const note = warning ? `<p class="status">${warning}</p>` : '';
+    ui.guidance.innerHTML = note + vocalList(notes);
   }
 }
 

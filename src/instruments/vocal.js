@@ -10,3 +10,14 @@ export function noteName(pitch) {
 export function intervalSemitones(a, b) {
   return Math.abs(b - a);
 }
+
+// Highest pitch most singers reach comfortably (C6). Above it, a warning is shown.
+const COMFORTABLE_HIGH = 84;
+
+// Returns a warning when the melody goes above the comfortable singing range, else null.
+export function tessituraWarning(notes) {
+  if (notes.length === 0) return null;
+  const highest = Math.max(...notes.map(n => n.pitch));
+  if (highest <= COMFORTABLE_HIGH) return null;
+  return `Bazı notalar tipik vokal aralığının üstünde (en yüksek: ${noteName(highest)}).`;
+}

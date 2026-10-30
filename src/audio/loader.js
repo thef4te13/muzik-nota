@@ -48,3 +48,12 @@ export async function decodeToMono22050(arrayBuffer) {
   const rendered = await offline.startRendering();
   return rendered.getChannelData(0);
 }
+
+// Files above this size may exhaust memory on a phone once decoded.
+const LARGE_FILE_BYTES = 100 * 1024 * 1024;
+
+// Returns a warning for very large files, else null.
+export function largeFileWarning(bytes) {
+  if (bytes <= LARGE_FILE_BYTES) return null;
+  return 'Dosya çok büyük; işlem uzun sürebilir ve telefonda bellek yetmeyebilir.';
+}
