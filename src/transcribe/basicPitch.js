@@ -42,30 +42,24 @@ export async function transcribe(samples, sampleRate = TARGET_SAMPLE_RATE, onPro
   const parts = [];
 
   for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
-    const notes = await new Promise((resolve, reject) => {
-      model
-        .evaluateModel(
-          chunk,
-          (frames, onsets, contours) => {
-            try {
-              const poly = outputToNotesPoly(frames, onsets);
-              resolve(
-                noteFramesToTime(poly).map(n => ({
-                  start: n.startTimeSeconds,
-                  end: n.startTimeSeconds + n.durationSeconds,
-                  pitch: n.pitchMidi,
-                  velocity: n.amplitude,
-                })),
-              );
-            } catch (err) {
-              reject(err);
-            }
-          },
-          fraction => onProgress((i + fraction) / chunks.length),
-        )
-        .catch(reject);
-    });
+    // evaluateModel calls back once per 2-second window, not once per chunk, so the
+    // windows are collected first and converted to notes after the chunk finishes.
+    const frames = [];
+    const onsets = [];
+    await model.evaluateModel(
+      chunks[i],
+      (windowFrames, windowOnsets) => {
+        frames.push(...windowFrames);
+        onsets.push(...windowOnsets);
+      },
+      fraction => onProgress((i + fraction) / chunks.length),
+    );
+    const notes = noteFramesToTime(outputToNotesPoly(frames, onsets)).map(n => ({
+      start: n.startTimeSeconds,
+      end: n.startTimeSeconds + n.durationSeconds,
+      pitch: n.pitchMidi,
+      velocity: n.amplitude,
+    }));
     parts.push({ offsetSeconds: i * CHUNK_SECONDS, notes });
   }
   onProgress(1);

@@ -8,7 +8,9 @@ import { assignViolin } from '../instruments/violin.js';
 import { assignHandAndFinger } from '../instruments/piano.js';
 import { noteName, intervalSemitones, tessituraWarning } from '../instruments/vocal.js';
 import { exportMidi } from '../render/midi.js';
-import { renderNotation } from '../render/notation.js';
+import { drawPage, paginate } from '../render/score.js';
+import { toMeasures } from '../render/quantize.js';
+import { buildScorePdf } from '../render/pdf.js';
 import { tabText } from '../render/tab.js';
 import { createLatestRun } from './runGuard.js';
 
@@ -46,6 +48,7 @@ export function startApp() {
       <div id="status" class="status" role="status"></div>
       <div id="error" class="error" role="alert"></div>
       <button id="midi" disabled>MIDI indir</button>
+      <button id="pdf" disabled>Notayı PDF indir</button>
     </section>
     <section class="results">
       <div id="notation" class="notation"></div>
@@ -59,6 +62,7 @@ export function startApp() {
   ui.status = document.getElementById('status');
   ui.error = document.getElementById('error');
   ui.midi = document.getElementById('midi');
+  ui.pdf = document.getElementById('pdf');
   ui.notation = document.getElementById('notation');
   ui.guidance = document.getElementById('guidance');
 
@@ -66,6 +70,7 @@ export function startApp() {
   ui.instrument.addEventListener('change', () => notes && show());
   ui.theme.addEventListener('change', () => selectTheme(Number(ui.theme.value)));
   ui.midi.addEventListener('click', downloadMidi);
+  ui.pdf.addEventListener('click', downloadPdf);
 
   loadThemes();
 }
@@ -108,6 +113,7 @@ async function analyze(file) {
   ui.error.textContent = '';
   notes = null;
   ui.midi.disabled = true;
+  ui.pdf.disabled = true;
   if (!file) return;
 
   const run = latest.begin();
@@ -135,6 +141,7 @@ async function analyze(file) {
     notes = found;
     bpm = estimateTempo([...new Set(notes.map(n => n.start))].sort((a, b) => a - b));
     ui.midi.disabled = false;
+    ui.pdf.disabled = false;
     const summary = `${notes.length} nota bulundu${bpm ? `, tempo yaklaşık ${Math.round(bpm)} BPM` : ''}.`;
     ui.status.textContent = warning ? `${warning} ${summary}` : summary;
     show();
@@ -168,8 +175,34 @@ function describeError(err) {
   return 'Beklenmeyen bir hata oluştu.';
 }
 
+// Shows the whole song as paged notation: rhythm from the detected tempo, all notes.
+function renderScoreView() {
+  ui.notation.innerHTML = '';
+  for (const page of paginate(toMeasures(notes, bpm))) {
+    const div = document.createElement('div');
+    div.className = 'page';
+    ui.notation.appendChild(div);
+    drawPage(div, page);
+  }
+}
+
+async function downloadPdf() {
+  ui.pdf.disabled = true;
+  ui.status.textContent = 'PDF hazırlanıyor…';
+  try {
+    const doc = await buildScorePdf(toMeasures(notes, bpm), 'Nota');
+    doc.save('nota.pdf');
+    ui.status.textContent = 'PDF indirildi.';
+  } catch (err) {
+    console.error(err);
+    ui.error.textContent = 'PDF oluşturulamadı.';
+  } finally {
+    ui.pdf.disabled = false;
+  }
+}
+
 function show() {
-  renderNotation(ui.notation, notes);
+  renderScoreView();
   const kind = ui.instrument.value;
   if (kind === 'guitar') {
     ui.guidance.innerHTML = `<pre class="tab">${tabText(toTabLines(notes))}</pre>`;

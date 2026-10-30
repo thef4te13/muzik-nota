@@ -57,9 +57,15 @@ progress { width: 100%; }
 .status { color: var(--muted); font-size: 0.9rem; min-height: 1.2em; }
 .error { color: var(--accent); font-weight: 600; min-height: 1.2em; }
 
-.results { display: grid; gap: 12px; min-width: 0; }
+.results { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); min-width: 0; }
 
-.notation { width: 100%; overflow-x: auto; }
+.notation { width: 100%; min-width: 0; overflow-x: auto; }
+.notation > .page + .page { margin-top: 12px; }
+
+/* Score pages stay white in both themes so the black notation remains readable. */
+.page { background: #fff; border-radius: 6px; padding: 4px; max-width: 100%; }
+/* VexFlow writes inline width/height on the SVG, so these must win over the inline style. */
+.page svg { width: 100% !important; height: auto !important; }
 
 pre.tab {
   overflow-x: auto;
