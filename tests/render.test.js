@@ -25,3 +25,13 @@ describe('tabText', () => {
     expect(tabText(toTabLines([note])).split('\n')[2]).toBe('G|?--');
   });
 });
+
+import { BASS_LABELS, BASS_TUNING, BASS_MAX_FRET } from '../src/instruments/bass.js';
+describe('tabText for bass', () => {
+  it('dört telli satır üretir', () => {
+    const note = { start: 0, end: 1, pitch: 28, velocity: 1 };
+    const rows = tabText(toTabLines([note], BASS_TUNING, BASS_MAX_FRET), BASS_LABELS).split('\n');
+    expect(rows.length).toBe(4);
+    expect(rows[3]).toBe('E|0--');
+  });
+});

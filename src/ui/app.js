@@ -3,6 +3,8 @@ import { decodeToMono22050, largeFileWarning } from '../audio/loader.js';
 import { transcribe } from '../transcribe/basicPitch.js';
 import { estimateTempo } from '../transcribe/tempo.js';
 import { toTabLines } from '../instruments/guitar.js';
+import { BASS_TUNING, BASS_LABELS, BASS_MAX_FRET } from '../instruments/bass.js';
+import { assignViolin } from '../instruments/violin.js';
 import { assignHandAndFinger } from '../instruments/piano.js';
 import { noteName, intervalSemitones, tessituraWarning } from '../instruments/vocal.js';
 import { exportMidi } from '../render/midi.js';
@@ -31,6 +33,8 @@ export function startApp() {
       <label>Enstrüman
         <select id="instrument">
           <option value="guitar">Gitar (tab)</option>
+          <option value="bass">Bas gitar (tab)</option>
+          <option value="violin">Keman (tel, pozisyon, parmak)</option>
           <option value="piano">Piyano (el ve parmak)</option>
           <option value="vocal">Vokal (nota adları)</option>
         </select>
@@ -169,6 +173,11 @@ function show() {
   const kind = ui.instrument.value;
   if (kind === 'guitar') {
     ui.guidance.innerHTML = `<pre class="tab">${tabText(toTabLines(notes))}</pre>`;
+  } else if (kind === 'bass') {
+    const lines = toTabLines(notes, BASS_TUNING, BASS_MAX_FRET);
+    ui.guidance.innerHTML = `<pre class="tab">${tabText(lines, BASS_LABELS)}</pre>`;
+  } else if (kind === 'violin') {
+    ui.guidance.innerHTML = violinList(notes);
   } else if (kind === 'piano') {
     ui.guidance.innerHTML = pianoList(notes);
   } else {
@@ -176,6 +185,16 @@ function show() {
     const note = warning ? `<p class="status">${warning}</p>` : '';
     ui.guidance.innerHTML = note + vocalList(notes);
   }
+}
+
+function violinList(all) {
+  const items = all.map(note => {
+    const spot = assignViolin(note.pitch);
+    if (spot === null) return `<li>${noteName(note.pitch)}: keman aralığının dışında</li>`;
+    const where = spot.fret === 0 ? 'açık tel' : `${spot.position}. pozisyon, ${spot.finger}. parmak`;
+    return `<li>${noteName(note.pitch)}: ${spot.stringName} teli, ${where}</li>`;
+  });
+  return `<ul class="guidance">${items.join('')}</ul>`;
 }
 
 function pianoList(all) {
