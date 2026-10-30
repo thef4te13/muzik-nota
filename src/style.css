@@ -1,0 +1,72 @@
+:root {
+  --bg: #fdfcf8;
+  --fg: #1d1d1f;
+  --accent: #b5452b;
+  --muted: #8a8a8e;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, sans-serif;
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  main { grid-template-columns: 320px 1fr; }
+}
+
+h1 { font-size: 1.4rem; margin: 0; grid-column: 1 / -1; }
+
+.panel {
+  border: 1px solid var(--muted);
+  border-radius: 10px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+label { display: grid; gap: 4px; font-size: 0.9rem; }
+
+input, select, button {
+  font: inherit;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--muted);
+  background: var(--bg);
+  color: var(--fg);
+  max-width: 100%;
+}
+
+button { background: var(--accent); color: var(--bg); border: none; cursor: pointer; }
+button:disabled { opacity: 0.5; cursor: default; }
+
+progress { width: 100%; }
+
+.status { color: var(--muted); font-size: 0.9rem; min-height: 1.2em; }
+.error { color: var(--accent); font-weight: 600; min-height: 1.2em; }
+
+.results { display: grid; gap: 12px; min-width: 0; }
+
+.notation { width: 100%; overflow-x: auto; }
+
+pre.tab {
+  overflow-x: auto;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+ul.guidance { margin: 0; padding-left: 20px; font-size: 0.95rem; }
