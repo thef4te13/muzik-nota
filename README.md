@@ -28,6 +28,12 @@ Türkçe ve İngilizce arayüz; sistem diline göre seçilir.
 Windows: otomatik güncellemeli standart kurulum (indirmeden önce sorar).
 macOS (Intel ve Apple Silicon): .dmg ve .zip. Mac’te henüz test edilmedi. Uygulama imzasız; ilk açılışta sağ tık → Aç yapın. macOS’ta otomatik güncelleme yok; yeni sürümleri bu sayfadan indirin.
 
+## Ekran görüntüleri / Screenshots
+
+![Başlangıç ekranı / Start screen](docs/screenshots/start.jpg)
+
+![Analiz sonucu / Analysis result](docs/screenshots/result.jpg)
+
 ## Kurulum
 
 - **Windows:** Releases sayfasındaki `Muzik Nota Setup` dosyasını indirip çalıştırın. Kod imzalanmadığı için Windows "bilinmeyen yayıncı" uyarısı gösterebilir; "Yine de çalıştır" seçeneğini kullanın.
