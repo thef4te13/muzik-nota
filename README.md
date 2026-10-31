@@ -1,6 +1,32 @@
 # Müzik → Nota
-
 Bir ses kaydını nota, PDF ve MIDI'ye çeviren masaüstü uygulaması. Analiz bilgisayarınızda yapılır; ses dosyası dışarı gönderilmez.
+
+## Notes
+English
+
+Muzik Nota v0.1.0, the first public release.
+
+Turns an audio recording into sheet music (PDF) and MIDI, with a melody or chord mode.
+Shows which instruments appear in the file, with their share of time and confidence.
+Violin and guitar tab/fingering hints, plus piano and vocal guides.
+Turkish and English interface, detected from your system language.
+Works offline; audio never leaves your computer.
+Windows: standard installer with automatic updates (asks before downloading).
+macOS (Intel and Apple Silicon): .dmg and .zip. Not yet tested on a Mac. The app is unsigned, so right-click → Open on first launch. Automatic updates are not available on macOS; download new versions from this page.
+
+Known limits: transcription accuracy depends on the recording. Dense orchestral recordings give rough results. The Windows installer is unsigned, so Windows may show a warning.
+
+Türkçe
+
+Muzik Nota v0.1.0, ilk herkese açık sürüm.
+
+Bir ses kaydını nota (PDF) ve MIDI’ye çevirir; melodi veya akor modu var.
+Dosyada hangi enstrümanların bulunduğunu, süre oranı ve güvenle gösterir.
+Keman ve gitar için tel/parmak önerileri, piyano ve vokal için yönlendirmeler.
+Türkçe ve İngilizce arayüz; sistem diline göre seçilir.
+İnternet gerekmez; ses dosyası bilgisayardan dışarı çıkmaz.
+Windows: otomatik güncellemeli standart kurulum (indirmeden önce sorar).
+macOS (Intel ve Apple Silicon): .dmg ve .zip. Mac’te henüz test edilmedi. Uygulama imzasız; ilk açılışta sağ tık → Aç yapın. macOS’ta otomatik güncelleme yok; yeni sürümleri bu sayfadan indirin.
 
 ## Kurulum
 
