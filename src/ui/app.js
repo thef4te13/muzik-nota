@@ -8,7 +8,8 @@ import { assignViolin } from '../instruments/violin.js';
 import { assignHandAndFinger } from '../instruments/piano.js';
 import { noteName, intervalSemitones, tessituraWarning } from '../instruments/vocal.js';
 import { exportMidi } from '../render/midi.js';
-import { drawPage, paginate } from '../render/score.js';
+import { drawPage, paginate, MEASURES_PER_PAGE } from '../render/score.js';
+import { findGaps, gapMeasures, localGapIndexes } from '../render/gaps.js';
 import { toMeasures } from '../render/quantize.js';
 import { buildScorePdf } from '../render/pdf.js';
 import { tabText } from '../render/tab.js';
@@ -202,19 +203,23 @@ function applyMode() {
 // Shows the whole song as paged notation: rhythm from the detected tempo, all notes.
 function renderScoreView() {
   ui.notation.innerHTML = '';
-  for (const page of paginate(toMeasures(notes, bpm))) {
+  const measures = toMeasures(notes, bpm);
+  const gaps = gapMeasures(findGaps(notes), bpm ?? 120, measures.length);
+  paginate(measures).forEach((page, p) => {
     const div = document.createElement('div');
     div.className = 'page';
     ui.notation.appendChild(div);
-    drawPage(div, page);
-  }
+    drawPage(div, page, localGapIndexes(gaps, p, MEASURES_PER_PAGE));
+  });
 }
 
 async function downloadPdf() {
   ui.pdf.disabled = true;
   ui.status.textContent = 'PDF hazırlanıyor…';
   try {
-    const doc = await buildScorePdf(toMeasures(notes, bpm), 'Nota');
+    const measures = toMeasures(notes, bpm);
+    const gaps = gapMeasures(findGaps(notes), bpm ?? 120, measures.length);
+    const doc = await buildScorePdf(measures, 'Nota', gaps);
     doc.save('nota.pdf');
     ui.status.textContent = 'PDF indirildi.';
   } catch (err) {

@@ -1,12 +1,13 @@
 import { jsPDF } from 'jspdf';
 import { svg2pdf } from 'svg2pdf.js';
-import { drawPage, paginate, pageHeight, PAGE_WIDTH } from './score.js';
+import { drawPage, paginate, pageHeight, PAGE_WIDTH, MEASURES_PER_PAGE } from './score.js';
+import { localGapIndexes } from './gaps.js';
 
 const PAGE_MARGIN = 20;
 const TITLE_SPACE = 40;
 
 // Writes the score as an A4 PDF, one score page per PDF page. Returns the jsPDF document.
-export async function buildScorePdf(measures, title) {
+export async function buildScorePdf(measures, title, gapIndexes = new Set()) {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth() - 2 * PAGE_MARGIN;
   const scale = pageWidth / PAGE_WIDTH;
@@ -24,7 +25,7 @@ export async function buildScorePdf(measures, title) {
         doc.setFontSize(16);
         doc.text(title, PAGE_MARGIN, PAGE_MARGIN + 16);
       }
-      drawPage(host, pages[i]);
+      drawPage(host, pages[i], localGapIndexes(gapIndexes, i, MEASURES_PER_PAGE));
       await svg2pdf(host.querySelector('svg'), doc, {
         x: PAGE_MARGIN,
         y: top,

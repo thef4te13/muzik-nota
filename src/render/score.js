@@ -5,6 +5,7 @@ import { toVexKeys } from './notation.js';
 export const PAGE_WIDTH = 800;
 export const MEASURES_PER_SYSTEM = 4;
 export const SYSTEMS_PER_PAGE = 6;
+export const MEASURES_PER_PAGE = MEASURES_PER_SYSTEM * SYSTEMS_PER_PAGE;
 const SYSTEM_HEIGHT = 120;
 const TOP_MARGIN = 20;
 const SIDE_MARGIN = 20;
@@ -24,7 +25,8 @@ export function pageHeight(measureCount) {
 }
 
 // Draws one page of measures as SVG into the container. Each measure is one 4/4 stave.
-export function drawPage(container, measures) {
+// gapIndexes holds the page-local indexes of measures that touch a silent gap.
+export function drawPage(container, measures, gapIndexes = new Set()) {
   container.innerHTML = '';
   const renderer = new Renderer(container, Renderer.Backends.SVG);
   renderer.resize(PAGE_WIDTH, pageHeight(measures.length));
@@ -43,6 +45,9 @@ export function drawPage(container, measures) {
     if (index === 0) stave.addTimeSignature('4/4');
     stave.setContext(context).draw();
     drawMeasure(context, stave, pieces);
+    if (gapIndexes.has(index)) {
+      context.fillText('algılanmadı', stave.getX() + 8, stave.getY() - 8);
+    }
   });
 }
 
