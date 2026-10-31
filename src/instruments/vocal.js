@@ -1,3 +1,4 @@
+import { t } from '../ui/i18n.js';
 const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 // Scientific pitch name for a MIDI number, e.g. 69 -> "A4".
@@ -19,5 +20,5 @@ export function tessituraWarning(notes) {
   if (notes.length === 0) return null;
   const highest = Math.max(...notes.map(n => n.pitch));
   if (highest <= COMFORTABLE_HIGH) return null;
-  return `Bazı notalar tipik vokal aralığının üstünde (en yüksek: ${noteName(highest)}).`;
+  return t('vocal.high', { note: noteName(highest) });
 }

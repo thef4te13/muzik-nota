@@ -1,3 +1,4 @@
+import { t } from '../ui/i18n.js';
 export const TARGET_SAMPLE_RATE = 22050;
 
 // Averages all channels into one. A single channel is returned unchanged.
@@ -55,5 +56,5 @@ const LARGE_FILE_BYTES = 100 * 1024 * 1024;
 // Returns a warning for very large files, else null.
 export function largeFileWarning(bytes) {
   if (bytes <= LARGE_FILE_BYTES) return null;
-  return 'Dosya çok büyük; işlem uzun sürebilir ve telefonda bellek yetmeyebilir.';
+  return t('largeFile');
 }

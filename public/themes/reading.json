@@ -1,1 +1,1 @@
-{ "name": "Okuma", "colors": { "bg": "#f4ecd8", "fg": "#3b2f1e", "accent": "#7a4b1e", "muted": "#9a8a6e" }, "font": "Georgia, serif" }
+{ "id": "reading", "name": "Okuma", "colors": { "bg": "#f4ecd8", "fg": "#3b2f1e", "accent": "#7a4b1e", "muted": "#9a8a6e" }, "font": "Georgia, serif" }

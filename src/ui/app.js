@@ -17,6 +17,7 @@ import { createLatestRun } from './runGuard.js';
 import { prepareNotes } from '../transcribe/melody.js';
 import { detectInstruments } from '../instruments/detect.js';
 import { RANGES } from '../instruments/ranges.js';
+import { t, loadLanguage, setLanguage, getLanguage } from './i18n.js';
 
 const THEME_KEY = 'muzik-nota-theme';
 // Notes starting closer together than this are treated as one chord.
@@ -29,41 +30,55 @@ let notes = null;
 let rawNotes = null;
 let bpm = null;
 let themes = [];
+let selectedFile = null;
+// Messages are functions, so a language switch can translate them again.
+let statusText = null;
+let errorText = null;
+let instruments = { kind: 'idle' };
 
 export function startApp() {
   document.getElementById('app').innerHTML = `
-    <h1>Müzik → Nota</h1>
+    <h1 data-i18n="appTitle"></h1>
     <section class="panel">
-      <label>Ses dosyası
+      <label><span data-i18n="fileLabel"></span>
         <input id="file" type="file" accept="audio/*" />
       </label>
-      <label>Enstrüman
-        <select id="instrument">
-          <option value="guitar">Gitar (tab)</option>
-          <option value="bass">Bas gitar (tab)</option>
-          <option value="violin">Keman (tel, pozisyon, parmak)</option>
-          <option value="piano">Piyano (el ve parmak)</option>
-          <option value="vocal">Vokal (nota adları)</option>
-        </select>
-      </label>
-      <label>Nota modu
-        <select id="mode">
-          <option value="melody" selected>Melodi (tek hat)</option>
-          <option value="chords">Akorlar</option>
-        </select>
-      </label>
-      <label>Tema
-        <select id="theme"></select>
-      </label>
+      <div class="controls">
+        <label><span data-i18n="instrument"></span>
+          <select id="instrument">
+            <option value="guitar" data-i18n="inst.guitar"></option>
+            <option value="bass" data-i18n="inst.bass"></option>
+            <option value="violin" data-i18n="inst.violin"></option>
+            <option value="piano" data-i18n="inst.piano"></option>
+            <option value="vocal" data-i18n="inst.vocal"></option>
+          </select>
+        </label>
+        <label><span data-i18n="mode"></span>
+          <select id="mode">
+            <option value="melody" selected data-i18n="mode.melody"></option>
+            <option value="chords" data-i18n="mode.chords"></option>
+          </select>
+        </label>
+        <label><span data-i18n="theme"></span>
+          <select id="theme"></select>
+        </label>
+        <label><span data-i18n="language"></span>
+          <select id="lang">
+            <option value="tr">Türkçe</option>
+            <option value="en">English</option>
+          </select>
+        </label>
+      </div>
+      <button id="start" class="start" disabled data-i18n="start"></button>
       <progress id="progress" value="0" max="1" hidden></progress>
       <div id="status" class="status" role="status"></div>
       <div id="error" class="error" role="alert"></div>
       <div>
-        <strong>Bulunan enstrümanlar</strong>
-        <ul id="instruments" class="guidance"><li>Dosya yüklendiğinde burada listelenir.</li></ul>
+        <strong data-i18n="instrumentsTitle"></strong>
+        <ul id="instruments" class="guidance"></ul>
       </div>
-      <button id="midi" disabled>MIDI indir</button>
-      <button id="pdf" disabled>Notayı PDF indir</button>
+      <button id="midi" disabled data-i18n="midi"></button>
+      <button id="pdf" disabled data-i18n="pdf"></button>
     </section>
     <section class="results">
       <div id="notation" class="notation"></div>
@@ -73,38 +88,76 @@ export function startApp() {
   ui.file = document.getElementById('file');
   ui.instrument = document.getElementById('instrument');
   ui.theme = document.getElementById('theme');
+  ui.lang = document.getElementById('lang');
   ui.mode = document.getElementById('mode');
+  ui.start = document.getElementById('start');
   ui.progress = document.getElementById('progress');
   ui.status = document.getElementById('status');
   ui.error = document.getElementById('error');
+  ui.instrumentList = document.getElementById('instruments');
   ui.midi = document.getElementById('midi');
   ui.pdf = document.getElementById('pdf');
   ui.notation = document.getElementById('notation');
   ui.guidance = document.getElementById('guidance');
 
-  ui.file.addEventListener('change', () => analyze(ui.file.files[0]));
+  ui.file.addEventListener('change', () => {
+    selectedFile = ui.file.files[0] ?? null;
+    ui.start.disabled = !selectedFile;
+  });
+  ui.start.addEventListener('click', () => selectedFile && analyze(selectedFile));
   ui.instrument.addEventListener('change', () => rawNotes && applyMode());
-  ui.instruments = document.getElementById('instruments');
-  ui.theme.addEventListener('change', () => selectTheme(Number(ui.theme.value)));
   ui.mode.addEventListener('change', () => rawNotes && applyMode());
+  ui.theme.addEventListener('change', () => selectTheme(Number(ui.theme.value)));
+  ui.lang.addEventListener('change', () => switchLanguage(ui.lang.value));
   ui.midi.addEventListener('click', downloadMidi);
   ui.pdf.addEventListener('click', downloadPdf);
 
+  loadLanguage();
+  ui.lang.value = getLanguage();
+  applyStaticText();
   loadThemes();
+}
+
+// Translates everything that is fixed in the page, then the messages currently shown.
+function applyStaticText() {
+  document.documentElement.lang = getLanguage();
+  document.title = t('appTitle');
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  renderThemeOptions();
+  renderStatus();
+  renderError();
+  renderInstruments();
+}
+
+function switchLanguage(lang) {
+  setLanguage(lang);
+  applyStaticText();
+  if (notes) show();
 }
 
 async function loadThemes() {
   try {
     const files = await (await fetch('./themes/index.json')).json();
     const loaded = await Promise.all(files.map(f => fetch(`./themes/${f}`).then(r => r.json())));
-    themes = loaded.filter(t => validateTheme(t).length === 0);
-    ui.theme.innerHTML = themes.map((t, i) => `<option value="${i}">${t.name}</option>`).join('');
+    themes = loaded.filter(th => validateTheme(th).length === 0);
+    renderThemeOptions();
     const saved = readSavedTheme();
-    const index = themes.findIndex(t => t.name === saved);
+    const index = themes.findIndex(th => th.id === saved);
     selectTheme(index >= 0 ? index : 0);
   } catch {
-    ui.error.textContent = 'Temalar yüklenemedi; varsayılan görünüm kullanılıyor.';
+    errorText = () => t('themesFailed');
+    renderError();
   }
+}
+
+function renderThemeOptions() {
+  const current = ui.theme.value;
+  ui.theme.innerHTML = themes
+    .map((th, i) => `<option value="${i}">${th.id ? t(`theme.${th.id}`) : th.name}</option>`)
+    .join('');
+  if (current) ui.theme.value = current;
 }
 
 function selectTheme(index) {
@@ -113,7 +166,7 @@ function selectTheme(index) {
   ui.theme.value = String(index);
   applyTheme(theme, document.documentElement);
   try {
-    localStorage.setItem(THEME_KEY, theme.name);
+    localStorage.setItem(THEME_KEY, theme.id);
   } catch {
     // Storage may be blocked; the theme still applies for this visit.
   }
@@ -127,24 +180,42 @@ function readSavedTheme() {
   }
 }
 
+function setStatus(message) {
+  statusText = message;
+  renderStatus();
+}
+
+function renderStatus() {
+  ui.status.textContent = statusText ? statusText() : '';
+}
+
+function setError(message) {
+  errorText = message;
+  renderError();
+}
+
+function renderError() {
+  ui.error.textContent = errorText ? errorText() : '';
+}
+
 async function analyze(file) {
-  ui.error.textContent = '';
+  setError(null);
   notes = null;
   ui.midi.disabled = true;
   ui.pdf.disabled = true;
-  if (!file) return;
+  ui.start.disabled = true;
 
   const run = latest.begin();
   const current = () => latest.isCurrent(run);
-  const warning = largeFileWarning(file.size);
+  const isLarge = largeFileWarning(file.size) !== null;
 
   try {
-    ui.status.textContent = warning ?? 'Ses çözülüyor…';
+    setStatus(() => (isLarge ? `${t('largeFile')} ` : '') + t('decoding'));
     setProgress(true);
     const samples = await decodeToMono22050(await file.arrayBuffer());
     if (!current()) return;
 
-    ui.status.textContent = 'Notalar çıkarılıyor…';
+    setStatus(() => t('transcribing'));
     const found = await transcribe(samples, SAMPLE_RATE, fraction => {
       if (current()) ui.progress.value = fraction;
     });
@@ -153,31 +224,45 @@ async function analyze(file) {
     rawNotes = found;
     const prepared = prepareNotes(found, { mode: ui.mode.value, range: rangeFor(ui.instrument.value) });
     if (prepared.length === 0) {
-      ui.status.textContent = 'Nota bulunamadı. Kayıtta belirgin bir ses olmayabilir.';
+      setStatus(() => t('noNotes'));
       ui.notation.innerHTML = '';
       ui.guidance.innerHTML = '';
       return;
     }
     notes = prepared;
-    ui.instruments.innerHTML = '<li>Enstrümanlar taranıyor…</li>';
+    instruments = { kind: 'scanning' };
+    renderInstruments();
     detectInstruments(samples, SAMPLE_RATE)
-      .then(found => current() && renderInstruments(found))
+      .then(result => {
+        if (!current()) return;
+        instruments = { kind: 'found', found: result };
+        renderInstruments();
+      })
       .catch(err => {
         console.error(err);
-        if (current()) ui.instruments.innerHTML = '<li>Enstrüman tespiti yapılamadı (model dosyası erişilemedi olabilir).</li>';
+        if (!current()) return;
+        instruments = { kind: 'failed' };
+        renderInstruments();
       });
     bpm = estimateTempo([...new Set(notes.map(n => n.start))].sort((a, b) => a - b));
     ui.midi.disabled = false;
     ui.pdf.disabled = false;
-    const summary = `${notes.length} nota bulundu${bpm ? `, tempo yaklaşık ${Math.round(bpm)} BPM` : ''}.`;
-    ui.status.textContent = warning ? `${warning} ${summary}` : summary;
+    const count = notes.length;
+    const tempoBpm = bpm ? Math.round(bpm) : null;
+    setStatus(() => {
+      const tempo = tempoBpm ? t('tempo', { bpm: tempoBpm }) : '';
+      return (isLarge ? `${t('largeFile')} ` : '') + t('summary', { count, tempo });
+    });
     show();
   } catch (err) {
     if (!current()) return;
-    ui.status.textContent = '';
-    ui.error.textContent = describeError(err);
+    setStatus(null);
+    setError(describeError(err));
   } finally {
-    if (current()) setProgress(false);
+    if (current()) {
+      setProgress(false);
+      ui.start.disabled = !selectedFile;
+    }
   }
 }
 
@@ -190,16 +275,15 @@ function setProgress(busy) {
 function describeError(err) {
   console.error(err);
   const text = String(err?.message ?? '');
+  let key = 'errUnknown';
   if (err instanceof RangeError) {
-    return 'Dosya işlenemeyecek kadar büyük. Daha kısa bir kayıt deneyin.';
+    key = 'errLarge';
+  } else if (err instanceof DOMException || /decode/i.test(text)) {
+    key = 'errDecode';
+  } else if (/fetch|load|model/i.test(text)) {
+    key = 'errModel';
   }
-  if (err instanceof DOMException || /decode/i.test(text)) {
-    return 'Bu dosya çözülemedi. MP3, WAV, OGG veya M4A deneyin.';
-  }
-  if (/fetch|load|model/i.test(text)) {
-    return 'Transkripsiyon modeli yüklenemedi. Bağlantınızı kontrol edip yeniden deneyin.';
-  }
-  return 'Beklenmeyen bir hata oluştu.';
+  return () => t(key);
 }
 
 // The playable range of the chosen instrument view, or undefined when there is none.
@@ -207,22 +291,31 @@ function rangeFor(kind) {
   return RANGES[kind];
 }
 
-// Lists the instruments found in the file, with the share of time and confidence.
-function renderInstruments(found) {
-  if (found.length === 0) {
-    ui.instruments.innerHTML = '<li>Bilinen bir enstrüman bulunamadı.</li>';
+// Shows the instruments found in the file, or the current detection state.
+function renderInstruments() {
+  if (instruments.kind === 'found') {
+    if (instruments.found.length === 0) {
+      ui.instrumentList.innerHTML = `<li>${t('instrumentsNone')}</li>`;
+      return;
+    }
+    ui.instrumentList.innerHTML = instruments.found
+      .map(d => `<li>${t('instrumentLine', {
+        label: d.label,
+        share: Math.round(d.share * 100),
+        confidence: Math.round(d.confidence * 100),
+      })}</li>`)
+      .join('');
     return;
   }
-  ui.instruments.innerHTML = found
-    .map(d => `<li>${d.label}: süre oranı %${Math.round(d.share * 100)}, güven %${Math.round(d.confidence * 100)}</li>`)
-    .join('');
+  const keys = { idle: 'instrumentsIdle', scanning: 'instrumentsScanning', failed: 'instrumentsFailed' };
+  ui.instrumentList.innerHTML = `<li>${t(keys[instruments.kind])}</li>`;
 }
 
 // Re-applies the note mode to the last transcription, without transcribing again.
 function applyMode() {
   notes = prepareNotes(rawNotes, { mode: ui.mode.value, range: rangeFor(ui.instrument.value) });
   if (notes.length === 0) {
-    ui.status.textContent = 'Bu modda gösterilecek nota yok.';
+    setStatus(() => t('modeEmpty'));
     ui.notation.innerHTML = '';
     ui.guidance.innerHTML = '';
     return;
@@ -245,16 +338,16 @@ function renderScoreView() {
 
 async function downloadPdf() {
   ui.pdf.disabled = true;
-  ui.status.textContent = 'PDF hazırlanıyor…';
+  setStatus(() => t('pdfPreparing'));
   try {
     const measures = toMeasures(notes, bpm);
     const gaps = gapMeasures(findGaps(notes), bpm ?? 120, measures.length);
-    const doc = await buildScorePdf(measures, 'Nota', gaps);
+    const doc = await buildScorePdf(measures, t('pdfTitle'), gaps);
     doc.save('nota.pdf');
-    ui.status.textContent = 'PDF indirildi.';
+    setStatus(() => t('pdfDone'));
   } catch (err) {
     console.error(err);
-    ui.error.textContent = 'PDF oluşturulamadı.';
+    setError(() => t('pdfFailed'));
   } finally {
     ui.pdf.disabled = false;
   }
@@ -281,10 +374,13 @@ function show() {
 
 function violinList(all) {
   const items = all.map(note => {
+    const name = noteName(note.pitch);
     const spot = assignViolin(note.pitch);
-    if (spot === null) return `<li>${noteName(note.pitch)}: keman aralığının dışında</li>`;
-    const where = spot.fret === 0 ? 'açık tel' : `${spot.position}. pozisyon, ${spot.finger}. parmak`;
-    return `<li>${noteName(note.pitch)}: ${spot.stringName} teli, ${where}</li>`;
+    if (spot === null) return `<li>${t('violin.outOfRange', { note: name })}</li>`;
+    const where = spot.fret === 0
+      ? t('violin.open')
+      : t('violin.where', { pos: spot.position, finger: spot.finger });
+    return `<li>${t('violin.line', { note: name, string: spot.stringName, where })}</li>`;
   });
   return `<ul class="guidance">${items.join('')}</ul>`;
 }
@@ -297,14 +393,14 @@ function pianoList(all) {
     rank = lastStart !== null && note.start - lastStart < CHORD_WINDOW_SECONDS ? rank + 1 : 0;
     lastStart = note.start;
     const { hand, finger } = assignHandAndFinger(note.pitch, rank);
-    items.push(`<li>${noteName(note.pitch)}: ${hand === 'L' ? 'sol' : 'sağ'} el, parmak ${finger}</li>`);
+    items.push(`<li>${t('piano.line', { note: noteName(note.pitch), hand: t(`hand.${hand}`), finger })}</li>`);
   }
   return `<ul class="guidance">${items.join('')}</ul>`;
 }
 
 function vocalList(all) {
   const items = all.map((note, i) => {
-    const step = i === 0 ? '' : `, önceki notaya ${intervalSemitones(all[i - 1].pitch, note.pitch)} yarım ton`;
+    const step = i === 0 ? '' : t('vocal.step', { n: intervalSemitones(all[i - 1].pitch, note.pitch) });
     return `<li>${noteName(note.pitch)}${step}</li>`;
   });
   return `<ul class="guidance">${items.join('')}</ul>`;

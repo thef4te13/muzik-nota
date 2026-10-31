@@ -9,7 +9,10 @@
 
 body {
   margin: 0;
-  background: var(--bg);
+  min-height: 100vh;
+  background-color: var(--bg);
+  background-image: var(--bg-image, none);
+  background-attachment: fixed;
   color: var(--fg);
   font-family: system-ui, sans-serif;
 }
@@ -22,20 +25,23 @@ main {
   gap: 16px;
 }
 
-@media (min-width: 768px) {
-  main { grid-template-columns: 320px 1fr; }
-}
+h1 { font-size: 1.4rem; margin: 0; }
 
-h1 { font-size: 1.4rem; margin: 0; grid-column: 1 / -1; }
-
+/* Controls sit on top as a bar; the score gets the full width below. */
 .panel {
   border: 1px solid var(--muted);
-  border-radius: 10px;
-  padding: 12px;
+  border-radius: 14px;
+  padding: 14px;
   display: grid;
-  gap: 10px;
-  align-content: start;
+  gap: 12px;
+  background: color-mix(in srgb, var(--bg) 75%, transparent);
+  backdrop-filter: blur(8px);
 }
+
+/* Instrument, mode, theme and language in a 2 x 2 grid. */
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.start { font-weight: 600; padding: 10px; }
 
 label { display: grid; gap: 4px; font-size: 0.9rem; }
 

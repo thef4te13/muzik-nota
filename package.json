@@ -6,18 +6,61 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "vitest run"
+    "test": "vitest run",
+    "desktop": "vite build && electron .",
+    "dist:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dist-win.ps1"
   },
   "devDependencies": {
+    "electron": "^45.2.1",
+    "electron-builder": "^26.18.0",
     "vite": "^8.3.5",
     "vitest": "^5.0.5"
   },
   "dependencies": {
     "@mediapipe/tasks-audio": "^1.2.0",
     "@spotify/basic-pitch": "^1.0.1",
+    "electron-updater": "^6.8.11",
     "jspdf": "^4.2.1",
     "midi-writer-js": "^3.2.1",
     "svg2pdf.js": "^2.9.0",
     "vexflow": "^5.0.0"
-  }
+  },
+  "main": "electron/main.js",
+  "build": {
+    "appId": "com.muziknota.app",
+    "productName": "Muzik Nota",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "thef4te13",
+        "repo": "muzik-nota"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "license": "MIT"
 }

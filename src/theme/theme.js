@@ -19,4 +19,6 @@ export function applyTheme(theme, root) {
     root.style.setProperty(`--${key}`, value);
   }
   root.style.setProperty('font-family', theme.font);
+  // Optional CSS background (gradients, stars); themes without one get a plain background.
+  root.style.setProperty('--bg-image', theme.background ?? 'none');
 }

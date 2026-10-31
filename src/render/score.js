@@ -1,3 +1,4 @@
+import { t } from '../ui/i18n.js';
 import { Renderer, Stave, StaveNote, Voice, Formatter, Accidental, Beam, StaveTie } from 'vexflow';
 import { noteName } from '../instruments/vocal.js';
 import { toVexKeys } from './notation.js';
@@ -46,7 +47,7 @@ export function drawPage(container, measures, gapIndexes = new Set()) {
     stave.setContext(context).draw();
     drawMeasure(context, stave, pieces);
     if (gapIndexes.has(index)) {
-      context.fillText('algılanmadı', stave.getX() + 8, stave.getY() - 8);
+      context.fillText(t('gap'), stave.getX() + 8, stave.getY() - 8);
     }
   });
 }
