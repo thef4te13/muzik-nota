@@ -379,7 +379,10 @@ function violinList(all) {
     if (spot === null) return `<li>${t('violin.outOfRange', { note: name })}</li>`;
     const where = spot.fret === 0
       ? t('violin.open')
-      : t('violin.where', { pos: spot.position, finger: spot.finger });
+      : t('violin.where', {
+        finger: t(`finger.${spot.finger}`),
+        place: t(spot.position === 1 ? 'violin.near' : 'violin.higher'),
+      });
     return `<li>${t('violin.line', { note: name, string: spot.stringName, where })}</li>`;
   });
   return `<ul class="guidance">${items.join('')}</ul>`;
@@ -393,7 +396,11 @@ function pianoList(all) {
     rank = lastStart !== null && note.start - lastStart < CHORD_WINDOW_SECONDS ? rank + 1 : 0;
     lastStart = note.start;
     const { hand, finger } = assignHandAndFinger(note.pitch, rank);
-    items.push(`<li>${t('piano.line', { note: noteName(note.pitch), hand: t(`hand.${hand}`), finger })}</li>`);
+    items.push(`<li>${t('piano.line', {
+      note: noteName(note.pitch),
+      hand: t(`hand.${hand}`),
+      finger: t(`pfinger.${finger}`),
+    })}</li>`);
   }
   return `<ul class="guidance">${items.join('')}</ul>`;
 }
