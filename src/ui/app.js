@@ -13,6 +13,7 @@ import { toMeasures } from '../render/quantize.js';
 import { buildScorePdf } from '../render/pdf.js';
 import { tabText } from '../render/tab.js';
 import { createLatestRun } from './runGuard.js';
+import { prepareNotes } from '../transcribe/melody.js';
 
 const THEME_KEY = 'muzik-nota-theme';
 // Notes starting closer together than this are treated as one chord.
@@ -22,6 +23,7 @@ const SAMPLE_RATE = 22050;
 const ui = {};
 const latest = createLatestRun();
 let notes = null;
+let rawNotes = null;
 let bpm = null;
 let themes = [];
 
@@ -41,6 +43,12 @@ export function startApp() {
           <option value="vocal">Vokal (nota adları)</option>
         </select>
       </label>
+      <label>Nota modu
+        <select id="mode">
+          <option value="melody" selected>Melodi (tek hat)</option>
+          <option value="chords">Akorlar</option>
+        </select>
+      </label>
       <label>Tema
         <select id="theme"></select>
       </label>
@@ -58,6 +66,7 @@ export function startApp() {
   ui.file = document.getElementById('file');
   ui.instrument = document.getElementById('instrument');
   ui.theme = document.getElementById('theme');
+  ui.mode = document.getElementById('mode');
   ui.progress = document.getElementById('progress');
   ui.status = document.getElementById('status');
   ui.error = document.getElementById('error');
@@ -69,6 +78,7 @@ export function startApp() {
   ui.file.addEventListener('change', () => analyze(ui.file.files[0]));
   ui.instrument.addEventListener('change', () => notes && show());
   ui.theme.addEventListener('change', () => selectTheme(Number(ui.theme.value)));
+  ui.mode.addEventListener('change', () => rawNotes && applyMode());
   ui.midi.addEventListener('click', downloadMidi);
   ui.pdf.addEventListener('click', downloadPdf);
 
@@ -132,13 +142,15 @@ async function analyze(file) {
     });
     if (!current()) return;
 
-    if (found.length === 0) {
+    rawNotes = found;
+    const prepared = prepareNotes(found, { mode: ui.mode.value });
+    if (prepared.length === 0) {
       ui.status.textContent = 'Nota bulunamadı. Kayıtta belirgin bir ses olmayabilir.';
       ui.notation.innerHTML = '';
       ui.guidance.innerHTML = '';
       return;
     }
-    notes = found;
+    notes = prepared;
     bpm = estimateTempo([...new Set(notes.map(n => n.start))].sort((a, b) => a - b));
     ui.midi.disabled = false;
     ui.pdf.disabled = false;
@@ -173,6 +185,18 @@ function describeError(err) {
     return 'Transkripsiyon modeli yüklenemedi. Bağlantınızı kontrol edip yeniden deneyin.';
   }
   return 'Beklenmeyen bir hata oluştu.';
+}
+
+// Re-applies the note mode to the last transcription, without transcribing again.
+function applyMode() {
+  notes = prepareNotes(rawNotes, { mode: ui.mode.value });
+  if (notes.length === 0) {
+    ui.status.textContent = 'Bu modda gösterilecek nota yok.';
+    ui.notation.innerHTML = '';
+    ui.guidance.innerHTML = '';
+    return;
+  }
+  show();
 }
 
 // Shows the whole song as paged notation: rhythm from the detected tempo, all notes.
