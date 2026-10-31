@@ -8,7 +8,8 @@
     "build": "vite build",
     "test": "vitest run",
     "desktop": "vite build && electron .",
-    "dist:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dist-win.ps1"
+    "dist:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dist-win.ps1",
+    "dist:mac": "vite build && electron-builder --mac"
   },
   "devDependencies": {
     "electron": "^45.2.1",
@@ -60,6 +61,28 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.music-app"
+    },
+    "dmg": {
+      "sign": false
     }
   },
   "license": "MIT"
