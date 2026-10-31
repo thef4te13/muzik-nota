@@ -13,6 +13,7 @@
     "vitest": "^5.0.5"
   },
   "dependencies": {
+    "@mediapipe/tasks-audio": "^1.2.0",
     "@spotify/basic-pitch": "^1.0.1",
     "jspdf": "^4.2.1",
     "midi-writer-js": "^3.2.1",

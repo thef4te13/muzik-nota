@@ -15,6 +15,8 @@ import { buildScorePdf } from '../render/pdf.js';
 import { tabText } from '../render/tab.js';
 import { createLatestRun } from './runGuard.js';
 import { prepareNotes } from '../transcribe/melody.js';
+import { detectInstruments } from '../instruments/detect.js';
+import { RANGES } from '../instruments/ranges.js';
 
 const THEME_KEY = 'muzik-nota-theme';
 // Notes starting closer together than this are treated as one chord.
@@ -56,6 +58,10 @@ export function startApp() {
       <progress id="progress" value="0" max="1" hidden></progress>
       <div id="status" class="status" role="status"></div>
       <div id="error" class="error" role="alert"></div>
+      <div>
+        <strong>Bulunan enstrümanlar</strong>
+        <ul id="instruments" class="guidance"><li>Dosya yüklendiğinde burada listelenir.</li></ul>
+      </div>
       <button id="midi" disabled>MIDI indir</button>
       <button id="pdf" disabled>Notayı PDF indir</button>
     </section>
@@ -77,7 +83,8 @@ export function startApp() {
   ui.guidance = document.getElementById('guidance');
 
   ui.file.addEventListener('change', () => analyze(ui.file.files[0]));
-  ui.instrument.addEventListener('change', () => notes && show());
+  ui.instrument.addEventListener('change', () => rawNotes && applyMode());
+  ui.instruments = document.getElementById('instruments');
   ui.theme.addEventListener('change', () => selectTheme(Number(ui.theme.value)));
   ui.mode.addEventListener('change', () => rawNotes && applyMode());
   ui.midi.addEventListener('click', downloadMidi);
@@ -144,7 +151,7 @@ async function analyze(file) {
     if (!current()) return;
 
     rawNotes = found;
-    const prepared = prepareNotes(found, { mode: ui.mode.value });
+    const prepared = prepareNotes(found, { mode: ui.mode.value, range: rangeFor(ui.instrument.value) });
     if (prepared.length === 0) {
       ui.status.textContent = 'Nota bulunamadı. Kayıtta belirgin bir ses olmayabilir.';
       ui.notation.innerHTML = '';
@@ -152,6 +159,13 @@ async function analyze(file) {
       return;
     }
     notes = prepared;
+    ui.instruments.innerHTML = '<li>Enstrümanlar taranıyor…</li>';
+    detectInstruments(samples, SAMPLE_RATE)
+      .then(found => current() && renderInstruments(found))
+      .catch(err => {
+        console.error(err);
+        if (current()) ui.instruments.innerHTML = '<li>Enstrüman tespiti yapılamadı (model dosyası erişilemedi olabilir).</li>';
+      });
     bpm = estimateTempo([...new Set(notes.map(n => n.start))].sort((a, b) => a - b));
     ui.midi.disabled = false;
     ui.pdf.disabled = false;
@@ -188,9 +202,25 @@ function describeError(err) {
   return 'Beklenmeyen bir hata oluştu.';
 }
 
+// The playable range of the chosen instrument view, or undefined when there is none.
+function rangeFor(kind) {
+  return RANGES[kind];
+}
+
+// Lists the instruments found in the file, with the share of time and confidence.
+function renderInstruments(found) {
+  if (found.length === 0) {
+    ui.instruments.innerHTML = '<li>Bilinen bir enstrüman bulunamadı.</li>';
+    return;
+  }
+  ui.instruments.innerHTML = found
+    .map(d => `<li>${d.label}: süre oranı %${Math.round(d.share * 100)}, güven %${Math.round(d.confidence * 100)}</li>`)
+    .join('');
+}
+
 // Re-applies the note mode to the last transcription, without transcribing again.
 function applyMode() {
-  notes = prepareNotes(rawNotes, { mode: ui.mode.value });
+  notes = prepareNotes(rawNotes, { mode: ui.mode.value, range: rangeFor(ui.instrument.value) });
   if (notes.length === 0) {
     ui.status.textContent = 'Bu modda gösterilecek nota yok.';
     ui.notation.innerHTML = '';
